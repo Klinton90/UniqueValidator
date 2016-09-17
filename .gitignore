@@ -1,0 +1,11 @@
+/target
+/out
+/gradle
+/build
+/.idea
+/.gradle
+/gradlew
+/gradlew.bat
+/*.iml
+/pom.xml.bak
+/classes

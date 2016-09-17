@@ -1,0 +1,41 @@
+group 'Klinton90'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: "spring-boot"
+apply plugin: 'maven'
+
+sourceCompatibility = 1.8
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "http://repo.maven.apache.org/maven2" }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:+")
+    }
+}
+
+configurations{
+    provided
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "http://repo.maven.apache.org/maven2" }
+}
+
+dependencies {
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '+', force: true
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '+', force: true
+    compile group: 'org.hibernate', name: 'hibernate-core'
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = project.gradleWrapperVersion
+}
