@@ -1,23 +1,22 @@
 package Klinton90.UniqueValidator;
 
+import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.util.*;
+import javax.persistence.Column;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.ConstraintValidator;
+import javax.validation.ConstraintValidatorContext;
+
+import org.apache.commons.lang3.StringUtils;
 import org.hibernate.criterion.DetachedCriteria;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.metadata.ClassMetadata;
+import org.hibernate.validator.constraintvalidation.HibernateConstraintValidatorContext;
 import org.springframework.stereotype.Service;
-
-import javax.persistence.Column;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
-import javax.validation.ValidationException;
-import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class UniqueValidator extends SessionAwareConstraintValidator<Object> implements ConstraintValidator<Unique, Object>{
@@ -33,108 +32,27 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
             return true;
         }
 
-        String field = _countRows3(value);
-        if(field != null){
-            context.buildConstraintViolationWithTemplate(context.getDefaultConstraintMessageTemplate())
-                    .addPropertyNode(field)
-                    .addConstraintViolation();
+        TreeMap<String, Object> fieldMap = _countRows(value);
+        if(fieldMap != null){
+            Map.Entry<String, Object> field = fieldMap.entrySet().iterator().next();
+            context.unwrap(HibernateConstraintValidatorContext.class)
+                    .addExpressionVariable("name", value.getClass().getSimpleName())
+                    .addExpressionVariable("fullName", value.getClass().getName())
+                    .addExpressionVariable("field", field.getKey())
+                    .addExpressionVariable("value", field.getValue())
+                    .addExpressionVariable("fields", StringUtils.join(fieldMap.keySet(), ", "))
+                    .addExpressionVariable("values", StringUtils.join(fieldMap.values(), ", "))
+                    .buildConstraintViolationWithTemplate(context.getDefaultConstraintMessageTemplate())
+                    .addPropertyNode(field.getKey())
+                    .addConstraintViolation()
+                    .disableDefaultConstraintViolation();
+
             return false;
         }
 
         return true;
     }
 
-    //region Guide
-    private String _countRows(Object value) {
-        Class clazz = value.getClass();
-        ClassMetadata meta = getSessionFactory().getClassMetadata(clazz);
-        String idName = meta.getIdentifierPropertyName();
-        Serializable idValue = meta.getIdentifier(value, (SessionImplementor)getTmpSession());
-
-        String[] fields = this.fields.length > 0 ? this.fields : _extractFieldsFromObject(value);
-        for(String fieldName : fields){
-            Object fieldValue = meta.getPropertyValue(value, fieldName);
-            if(_hasRecord(clazz, fieldName, fieldValue, idName, idValue)){
-                return fieldName;
-            }
-        }
-
-        return null;
-    }
-
-    private boolean _hasRecord(Class clazz, String fieldName, Object fieldValue, String idName, Serializable idValue){
-        DetachedCriteria criteria = DetachedCriteria.forClass(clazz)
-                .setProjection(Projections.rowCount())
-                .add(Restrictions.eq(fieldName, fieldValue));
-
-        if(idValue != null){
-            criteria.add(Restrictions.ne(idName, idValue));
-        }
-
-        Number count = (Number)criteria
-                .getExecutableCriteria(getTmpSession())
-                .list().iterator().next();
-
-        return count.intValue() > 0;
-    }
-
-    private String[] _extractFieldsFromObject(Object value){
-        ArrayList<String> fields = new ArrayList<>();
-        for(Field field: value.getClass().getDeclaredFields()){
-            if(field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).unique()){
-                fields.add(field.getName());
-            }
-        }
-
-        return fields.toArray(new String[0]);
-    }
-    //endregion
-
-    //region Reflection
-    private int _countRows2(Object value){
-        DetachedCriteria criteria = DetachedCriteria.forClass(value.getClass());
-
-        if(fields.length > 0){
-            for(String fieldName: fields){
-                try{
-                    Field field = value.getClass().getDeclaredField(fieldName);
-                    _prepareCriteria(field, value, criteria);
-                }catch(NoSuchFieldException e){
-                    throw new ValidationException("Field '" + fieldName +"' do not exist for class: '" + value.getClass() + "'");
-                }
-            }
-        }else{
-            for(Field field: value.getClass().getDeclaredFields()){
-                _prepareCriteria(field, value, criteria);
-            }
-        }
-
-        criteria.setProjection(Projections.rowCount());
-        List results = criteria.getExecutableCriteria(getTmpSession()).list();
-        Number count = (Number)results.iterator().next();
-        return count.intValue();
-    }
-
-    private void _prepareCriteria(Field field, Object value, DetachedCriteria criteria){
-        try{
-            if(field.isAnnotationPresent(Id.class)){
-                field.setAccessible(true);
-                Object fieldValue = field.get(value);
-                if(fieldValue != null){
-                    criteria.add(Restrictions.ne(field.getName(), fieldValue));
-                }
-            }else if(field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).unique()){
-                field.setAccessible(true);
-                Object fieldValue = field.get(value);
-                criteria.add(Restrictions.eq(field.getName(), fieldValue));
-            }
-        }catch(IllegalAccessException e){
-            throw new ValidationException("Cannot extract class metadata for class: '" + value.getClass() + "'");
-        }
-    }
-    //endregion
-
-    //region Experimental Reflection
     private ArrayList<String[]> _getFieldsFromUniqueConstraint(Object value){
         ArrayList<String[]> result = new ArrayList<>();
 
@@ -171,13 +89,13 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
     }
 
 
-    private boolean _hasRecord2(Object value, String[] fieldNames, String idName, Serializable idValue, ClassMetadata meta){
+    private boolean _hasRecord2(Object value, Map<String, Object> fieldMap, String idName, Serializable idValue, ClassMetadata meta){
         DetachedCriteria criteria = DetachedCriteria
                 .forClass(value.getClass())
                 .setProjection(Projections.rowCount());
 
-        for(String fieldName: fieldNames){
-            criteria.add(Restrictions.eq(fieldName, meta.getPropertyValue(value, fieldName)));
+        for(Map.Entry<String, Object> fieldEntry: fieldMap.entrySet()){
+            criteria.add(Restrictions.eq(fieldEntry.getKey(), fieldEntry.getValue()));
         }
 
         if(idValue != null){
@@ -191,7 +109,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
         return count.intValue() > 0;
     }
 
-    private String _countRows3(Object value) {
+    private TreeMap<String, Object> _countRows(Object value) {
         ClassMetadata meta = getSessionFactory().getClassMetadata(value.getClass());
         String idName = meta.getIdentifierPropertyName();
         Serializable idValue = meta.getIdentifier(value, (SessionImplementor)getTmpSession());
@@ -205,12 +123,15 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
         }
 
         for(String[] fieldSet : fieldSets){
-            if(_hasRecord2(value, fieldSet, idName, idValue, meta)){
-                return fieldSet[0];
+            TreeMap<String, Object> fieldMap = new TreeMap<>();
+            for(String fieldName: fieldSet){
+                fieldMap.put(fieldName, meta.getPropertyValue(value, fieldName));
+            }
+            if(_hasRecord2(value, fieldMap, idName, idValue, meta)){
+                return fieldMap;
             }
         }
 
         return null;
     }
-    //endregion
 }

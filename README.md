@@ -14,7 +14,9 @@ So it is up to you to include such dependency in your project.
 1) Multiple ways to set UniqueConstraint in Domain class
 2) Validator can read Constraints from well known `javax.persistence.*` Annotations
 3) Can handle both single and multi column Constraints
-4) Even though provided Annotation/Validator has `Target = Type`, it provides `FieldError` that can be used in Controller.
+4) Even though provided Annotation/Validator has `Target = Type` (applies to class level only), 
+it provides `FieldError` that can be used in Controller.
+5) Advanced ValidationMessage control.
 
 ## Quick start
 
@@ -173,16 +175,51 @@ In that case we added 2 Unique Constraints:
  - for `role` column;
  - for `email` and `password` columns (Multi Column Constraint).
  
+Please note! `fields` property has higher priority then anything else. 
+`@Column` and `@Table` annotations can work together, i.e. constraints will be picked up from both.
+ 
 ### Using FieldError
 Basic validation handler for Controllers:
 ```
 @ExceptionHandler(MethodArgumentNotValidException.class)
 public ResponseEntity<Map<String, Object>> processValidationError(MethodArgumentNotValidException ex) {
-    FieldError fieldError = ex.getBindingResult().getFieldError();
-    String defMessage = fieldError.getDefaultMessage();
-    String message = msgSource.getMessage(defMessage, null, LocaleContextHolder.getLocale());
+    HashMap<String, Object> result = new HashMap<>();
+    
+    BindingResult bindingResult = ex.getBindingResult();
+    FieldError fieldError = bindingResult.getFieldError();
+    Object[] messageArgs = {
+            fieldError.getObjectName(),
+            fieldError.getField(),
+            fieldError.getRejectedValue()
+    };
+    Object[] allArgs = ArrayUtils.addAll(fieldError.getArguments(), messageArgs);
+    String message = _prepareMessage(fieldError.getDefaultMessage(), allArgs);
+    
+    result.put("field", fieldError.getField());
+    result.put("message", message);
+    result.put("data", bindingResult.getTarget());
 
-    return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+    return new ResponseEntity<>(result, HttpStatus.BAD_REQUEST);
 }
 ```
-Please note! In case of Multi Column Constraint first column will be returned as `FieldError`.
+Using `FieldError` we can get field name (that is useful, if you want to stick error message to some field on your page),
+or get `DomainObject` with provided values.
+
+Please note! In case of Multi Column Constraint only 1 column will be returned as `FieldError`.
+Unfortunately there is no way to control which column to return. 
+Fields will be sorted alphabetically and first will be set as `FieldError`.
+
+### Default ValidationMessage
+When Validator is instantiated in code, it puts 6 MessageParameters:
+ - `name` - entity name
+ - `field` - field name (same as returned by FieldError)
+ - `value` - non-unique value (that belongs to `field`)
+ - `fullName` - class (e.g. `app.domain.user`)
+ - `fields` - all field names for Multi Column Constraint separated by comma
+ - `values` - all field names for Multi Column Constraint separated by comma in same order as fields
+You can use them in `message.properties` file as:
+```
+#default validation message
+klinton90.unique="Record [{name}] with parameter(s) [{fields}] and value(s) [{values}] already exists in DataBase";
+```
+Please note, unfortunately, there is no way to return same set of fields as arguments of `FieldError`.
