@@ -16,15 +16,20 @@ import org.hibernate.criterion.Restrictions;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.metadata.ClassMetadata;
 import org.hibernate.validator.constraintvalidation.HibernateConstraintValidatorContext;
+import org.springframework.context.MessageSource;
+import org.springframework.context.MessageSourceAware;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
-public class UniqueValidator extends SessionAwareConstraintValidator<Object> implements ConstraintValidator<Unique, Object>{
+public class UniqueValidator extends SessionAwareConstraintValidator<Object> implements ConstraintValidator<Unique, Object>, MessageSourceAware{
 
-    private String[] fields;
+    private String[] _fields;
+    private MessageSource _messageSource;
+    private final String _defaultMesssage = "Record [${name}] with parameter(s) [${allFields}] and value(s) [${values}] already exists in DataBase";
 
     public void initialize(Unique annotation){
-        this.fields = annotation.fields();
+        this._fields = annotation.fields();
     }
 
     public boolean isValidInSession(Object value, ConstraintValidatorContext context){
@@ -34,6 +39,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
 
         TreeMap<String, Object> fieldMap = _countRows(value);
         if(fieldMap != null){
+            String message = _messageSource.getMessage(context.getDefaultConstraintMessageTemplate(), null, _defaultMesssage, LocaleContextHolder.getLocale());
             Map.Entry<String, Object> field = fieldMap.entrySet().iterator().next();
             context.unwrap(HibernateConstraintValidatorContext.class)
                     .addExpressionVariable("name", value.getClass().getSimpleName())
@@ -42,7 +48,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
                     .addExpressionVariable("value", field.getValue())
                     .addExpressionVariable("allFields", StringUtils.join(fieldMap.keySet(), ", "))
                     .addExpressionVariable("values", StringUtils.join(fieldMap.values(), ", "))
-                    .buildConstraintViolationWithTemplate(context.getDefaultConstraintMessageTemplate())
+                    .buildConstraintViolationWithTemplate(message)
                     .addPropertyNode(field.getKey())
                     .addConstraintViolation()
                     .disableDefaultConstraintViolation();
@@ -69,7 +75,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
     private ArrayList<String[]> _prepareFields(){
         ArrayList<String[]> result = new ArrayList<>();
 
-        for(String fieldSet: fields){
+        for(String fieldSet: _fields){
             result.add(fieldSet.replaceAll("\\s","").split(","));
         }
 
@@ -115,7 +121,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
         Serializable idValue = meta.getIdentifier(value, (SessionImplementor)getTmpSession());
 
         ArrayList<String[]> fieldSets;
-        if(this.fields.length > 0){
+        if(this._fields.length > 0){
             fieldSets = _prepareFields();
         }else{
             fieldSets = _getFieldsFromUniqueConstraint(value);
@@ -134,4 +140,15 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
 
         return null;
     }
+
+    //region getters/setters
+    @Override
+    public void setMessageSource(MessageSource messageSource){
+        this._messageSource = messageSource;
+    }
+
+    public MessageSource getMessageSource(){
+        return this._messageSource;
+    }
+    //endregion
 }

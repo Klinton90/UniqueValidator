@@ -14,7 +14,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Target({TYPE})
 @Retention(RUNTIME)
 public @interface Unique{
-    String message() default "Record [${name}] with parameter(s) [${allFields}] and value(s) [${values}] already exists in DataBase";
+    String message() default "Klinton90.unique";
 
     String[] fields() default {};
 

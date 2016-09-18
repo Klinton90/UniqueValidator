@@ -187,7 +187,10 @@ When Validator is instantiated in code, it puts 6 MessageParameters:
  - `fields` - all field names for Multi Column Constraint separated by comma
  - `values` - all field names for Multi Column Constraint separated by comma in same order as fields
  
-You can use these values in direct `@Unique(message="Record {name}:[{fields}:{values}] already exists")` Validator property.
+You can use these values in direct `messages.properties` file.
+```
+Klinton90.unique=Record ${name}:[${fields}:${values}] already exists
+```
 Please note! Unfortunately, there is no way to return same set of fields as arguments of `FieldError`.
 
 ### Using FieldError
@@ -200,21 +203,8 @@ public ResponseEntity<Map<String, Object>> processValidationError(MethodArgument
     BindingResult bindingResult = ex.getBindingResult();
     FieldError fieldError = bindingResult.getFieldError();
     
-    Object[] fieldArgs = fieldError.getArguments();
-    Object[] messageArgs = {
-            fieldError.getField(),
-            fieldError.getRejectedValue()
-    };
-    Object[] allArgs = ArrayUtils.addAll(fieldArgs, messageArgs);
-    
-    //{0} - object name, i.e. 'User'
-    //{1} - "fields" property from '@Unique(fields={"email, password", "role"})' Annotation
-    //{2} - field name (for Multi Column Constraint - first by alphanumerical order)
-    //{3} - field value (for same column as above)
-    String message = _prepareMessage(fieldError.getDefaultMessage(), allArgs);
-    
     result.put("field", fieldError.getField());
-    result.put("message", message);
+    result.put("message", fieldError.getDefaultMessage());
     result.put("data", bindingResult.getTarget());
 
     return new ResponseEntity<>(result, HttpStatus.BAD_REQUEST);
