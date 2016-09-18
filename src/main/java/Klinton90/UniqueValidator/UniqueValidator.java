@@ -40,7 +40,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
                     .addExpressionVariable("fullName", value.getClass().getName())
                     .addExpressionVariable("field", field.getKey())
                     .addExpressionVariable("value", field.getValue())
-                    .addExpressionVariable("fields", StringUtils.join(fieldMap.keySet(), ", "))
+                    .addExpressionVariable("allFields", StringUtils.join(fieldMap.keySet(), ", "))
                     .addExpressionVariable("values", StringUtils.join(fieldMap.values(), ", "))
                     .buildConstraintViolationWithTemplate(context.getDefaultConstraintMessageTemplate())
                     .addPropertyNode(field.getKey())

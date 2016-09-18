@@ -186,12 +186,9 @@ When Validator is instantiated in code, it puts 6 MessageParameters:
  - `fullName` - class (e.g. `app.domain.user`)
  - `fields` - all field names for Multi Column Constraint separated by comma
  - `values` - all field names for Multi Column Constraint separated by comma in same order as fields
-You can use them in `message.properties` file as:
-```
-#default validation message
-klinton90.unique="Record [{name}] with parameter(s) [{fields}] and value(s) [{values}] already exists in DataBase";
-```
-Please note, unfortunately, there is no way to return same set of fields as arguments of `FieldError`.
+ 
+You can use these values in direct `@Unique(message="Record {name}:[{fields}:{values}] already exists")` Validator property.
+Please note! Unfortunately, there is no way to return same set of fields as arguments of `FieldError`.
 
 ### Using FieldError
 Basic validation handler for Controllers:
@@ -205,17 +202,15 @@ public ResponseEntity<Map<String, Object>> processValidationError(MethodArgument
     
     Object[] fieldArgs = fieldError.getArguments();
     Object[] messageArgs = {
-            fieldError.getObjectName(),
             fieldError.getField(),
             fieldError.getRejectedValue()
     };
     Object[] allArgs = ArrayUtils.addAll(fieldArgs, messageArgs);
     
-    //{0} - default useless parameter provided by Validation API
+    //{0} - object name, i.e. 'User'
     //{1} - "fields" property from '@Unique(fields={"email, password", "role"})' Annotation
-    //{2} - object name, i.e. 'User'
-    //{3} - field name (for Multi Column Constraint - first by alphanumerical order)
-    //{4} - field value (for same column as above)
+    //{2} - field name (for Multi Column Constraint - first by alphanumerical order)
+    //{3} - field value (for same column as above)
     String message = _prepareMessage(fieldError.getDefaultMessage(), allArgs);
     
     result.put("field", fieldError.getField());

@@ -6,7 +6,7 @@ import java.lang.annotation.Target;
 import javax.validation.Constraint;
 import javax.validation.Payload;
 
-import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.ElementType.*;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 @Documented
@@ -14,7 +14,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Target({TYPE})
 @Retention(RUNTIME)
 public @interface Unique{
-    String message() default "klinton90.unique";
+    String message() default "Record [${name}] with parameter(s) [${allFields}] and value(s) [${values}] already exists in DataBase";
 
     String[] fields() default {};
 
