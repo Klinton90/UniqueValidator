@@ -76,7 +76,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
         return result;
     }
 
-    private ArrayList<String[]> _extractFieldsFromObject2(Object value){
+    private ArrayList<String[]> _extractFieldsFromObject(Object value){
         ArrayList<String[]> result = new ArrayList<>();
         for(Field field: value.getClass().getDeclaredFields()){
             if(field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).unique()){
@@ -89,7 +89,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
     }
 
 
-    private boolean _hasRecord2(Object value, Map<String, Object> fieldMap, String idName, Serializable idValue, ClassMetadata meta){
+    private boolean _hasRecord(Object value, Map<String, Object> fieldMap, String idName, Serializable idValue, ClassMetadata meta){
         DetachedCriteria criteria = DetachedCriteria
                 .forClass(value.getClass())
                 .setProjection(Projections.rowCount());
@@ -119,7 +119,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
             fieldSets = _prepareFields();
         }else{
             fieldSets = _getFieldsFromUniqueConstraint(value);
-            fieldSets.addAll(_extractFieldsFromObject2(value));
+            fieldSets.addAll(_extractFieldsFromObject(value));
         }
 
         for(String[] fieldSet : fieldSets){
@@ -127,7 +127,7 @@ public class UniqueValidator extends SessionAwareConstraintValidator<Object> imp
             for(String fieldName: fieldSet){
                 fieldMap.put(fieldName, meta.getPropertyValue(value, fieldName));
             }
-            if(_hasRecord2(value, fieldMap, idName, idValue, meta)){
+            if(_hasRecord(value, fieldMap, idName, idValue, meta)){
                 return fieldMap;
             }
         }

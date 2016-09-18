@@ -177,37 +177,6 @@ In that case we added 2 Unique Constraints:
  
 Please note! `fields` property has higher priority then anything else. 
 `@Column` and `@Table` annotations can work together, i.e. constraints will be picked up from both.
- 
-### Using FieldError
-Basic validation handler for Controllers:
-```
-@ExceptionHandler(MethodArgumentNotValidException.class)
-public ResponseEntity<Map<String, Object>> processValidationError(MethodArgumentNotValidException ex) {
-    HashMap<String, Object> result = new HashMap<>();
-    
-    BindingResult bindingResult = ex.getBindingResult();
-    FieldError fieldError = bindingResult.getFieldError();
-    Object[] messageArgs = {
-            fieldError.getObjectName(),
-            fieldError.getField(),
-            fieldError.getRejectedValue()
-    };
-    Object[] allArgs = ArrayUtils.addAll(fieldError.getArguments(), messageArgs);
-    String message = _prepareMessage(fieldError.getDefaultMessage(), allArgs);
-    
-    result.put("field", fieldError.getField());
-    result.put("message", message);
-    result.put("data", bindingResult.getTarget());
-
-    return new ResponseEntity<>(result, HttpStatus.BAD_REQUEST);
-}
-```
-Using `FieldError` we can get field name (that is useful, if you want to stick error message to some field on your page),
-or get `DomainObject` with provided values.
-
-Please note! In case of Multi Column Constraint only 1 column will be returned as `FieldError`.
-Unfortunately there is no way to control which column to return. 
-Fields will be sorted alphabetically and first will be set as `FieldError`.
 
 ### Default ValidationMessage
 When Validator is instantiated in code, it puts 6 MessageParameters:
@@ -223,3 +192,42 @@ You can use them in `message.properties` file as:
 klinton90.unique="Record [{name}] with parameter(s) [{fields}] and value(s) [{values}] already exists in DataBase";
 ```
 Please note, unfortunately, there is no way to return same set of fields as arguments of `FieldError`.
+
+### Using FieldError
+Basic validation handler for Controllers:
+```
+@ExceptionHandler(MethodArgumentNotValidException.class)
+public ResponseEntity<Map<String, Object>> processValidationError(MethodArgumentNotValidException ex) {
+    HashMap<String, Object> result = new HashMap<>();
+    
+    BindingResult bindingResult = ex.getBindingResult();
+    FieldError fieldError = bindingResult.getFieldError();
+    
+    Object[] fieldArgs = fieldError.getArguments();
+    Object[] messageArgs = {
+            fieldError.getObjectName(),
+            fieldError.getField(),
+            fieldError.getRejectedValue()
+    };
+    Object[] allArgs = ArrayUtils.addAll(fieldArgs, messageArgs);
+    
+    //{0} - default useless parameter provided by Validation API
+    //{1} - "fields" property from '@Unique(fields={"email, password", "role"})' Annotation
+    //{2} - object name, i.e. 'User'
+    //{3} - field name (for Multi Column Constraint - first by alphanumerical order)
+    //{4} - field value (for same column as above)
+    String message = _prepareMessage(fieldError.getDefaultMessage(), allArgs);
+    
+    result.put("field", fieldError.getField());
+    result.put("message", message);
+    result.put("data", bindingResult.getTarget());
+
+    return new ResponseEntity<>(result, HttpStatus.BAD_REQUEST);
+}
+```
+Using `FieldError` we can get field name (that is useful, if you want to stick error message to some field on your page),
+or get `DomainObject` with provided values.
+
+Please note! In case of Multi Column Constraint only 1 column will be returned as `FieldError`.
+Unfortunately there is no way to control which column to return. 
+Fields will be sorted alphabetically and first will be set as `FieldError`.
