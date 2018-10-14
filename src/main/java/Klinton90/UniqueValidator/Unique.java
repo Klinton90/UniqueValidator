@@ -14,11 +14,13 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Target({TYPE})
 @Retention(RUNTIME)
 public @interface Unique{
+
     String message() default "Klinton90.unique";
 
-    String[] fields() default {};
+    UniqueColumn[] columns() default {};
 
     Class<?>[] groups() default {};
 
     Class<? extends Payload>[] payload() default {};
+
 }

@@ -62,11 +62,14 @@ Now we have to decide what way for setting Unique Constraints we will be using i
 There are 3 possible ways for setting Constraints with `UniqueValidator`. 
 Provided examples are silly, but it works for basic explanation.
 
-#### 1. `fields` property. 
-Provide `fields` property into Annotation body.
+#### 1. `columns` property. 
+Provide `columns` property into Annotation body.
 ```
 @Table(name="users")
-@Unique(fields = {"email", "role"})
+@Unique(columns = {
+    @UniqueColumn(fields = "email"),
+    @UniqueColumn(fields = "role")
+})
 public class User implements Serializable{
     
     @Id
@@ -93,7 +96,10 @@ select count(*) as y0_ from users this_ where this_.role=?
 But let's say you need MultiColumn constraint. In that case just put 2 column names separated by comma as 1 entry:
 ```
 @Table(name="users")
-@Unique(fields = {"email, password", "role"})
+@Unique(fields = {
+    @UniqueColumn(fields = {"email", "password"}, 
+    @UniqueColumn(fields = "role")
+})
 public class User implements Serializable{
     
     @Id
@@ -115,6 +121,13 @@ Example SQL log in this case:
 ```
 select count(*) as y0_ from users this_ where this_.email=? and this_.password=?
 select count(*) as y0_ from users this_ where this_.role=?
+```
+
+Sometimes, we have requirement to have Unique value in column OR empty value (which obviously is not unique).
+To support that case use property `orValue` to `@UniqueColumn` annotation.
+Property is compared to Model value before uniqueness validation. 
+```
+@UniqueColumn(fields = "role", orValue = "")
 ```
 
 #### 2. `@Column(unique = true)` Annotation
